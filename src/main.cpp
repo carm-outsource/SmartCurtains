@@ -1,26 +1,24 @@
 #include <Arduino.h>
 #include <Stepper.h>
 #include <LiquidCrystal_I2C.h>
+#include <Bounce2.h>
 
 #define CURTAIN_STEPS 200 // 窗帘完全开合需要的步数
 
 #define MOTOR_SPEED 64 // 电机速度
-#define KNOBS_PIN PIN_A0
-#define BUTTON_PIN 7
+#define KNOBS_PIN PIN_A0 // 旋钮引脚
+#define BUTTON_PIN 7 // 按钮引脚
 
 Stepper motor(32, 8, 9, 10, 11);
 LiquidCrystal_I2C lcd(0x27, 16, 2);  // I2C address: 0x27;
+Bounce2::Button button = Bounce2::Button();
 
 u8 target_percent = 255; // 本次目标窗帘开合程度，>=255则代表不在运行
 unsigned int current_steps = 0; // 当前窗帘开合步数
 
-bool button_pressed() {
-    return digitalRead(BUTTON_PIN) == LOW;
-}
-
 // 通过旋钮计算窗帘开合的程度，返回值为0-100
 u8 knobs_percent() {
-    return (unsigned short) map(analogRead(KNOBS_PIN), 0, 1024, 0, 100);
+    return (u8) map(analogRead(KNOBS_PIN), 0, 1024, 0, 100);
 }
 
 u8 current_percent() {
@@ -41,8 +39,9 @@ void display() {
     lcd.setCursor(0, 0);
     sprintf(
             buf, "C=%03d%% T=%03d%% %c",
-            current_percent(), running() ? target_percent : knobs_percent(),
-            button_pressed() ? '*' : ' '
+            current_percent(),
+            running() ? target_percent : knobs_percent(),
+            button.isPressed() ? '*' : ' '
     );
     lcd.print(buf);
     lcd.setCursor(0, 1);
@@ -54,26 +53,34 @@ void setup() {
     // 初始化LCD
     lcd.init();
     lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("SMART CURTAINS");
     lcd.clear();
 
-    pinMode(BUTTON_PIN, INPUT_PULLUP); // 初始化按钮为上拉输入
-    motor.setSpeed(MOTOR_SPEED);   // 设置电机速度
+    // 初始化按钮
+    button.attach(BUTTON_PIN, INPUT_PULLUP);
+    button.setPressedState(LOW);
+    button.interval(50);
+
+    // 设置电机速度
+    motor.setSpeed(MOTOR_SPEED);
 }
 
 void loop() {
+    button.update();//更新按钮状态
+
     static int display_counter = 0;
     if (display_counter++ % 500 == 0) {
         display_counter = 0;
         display();
     }
 
-    if (button_pressed()) { // 按钮按下，执行开合操作
+    if (button.pressed()) { // 按钮按下，执行开合操作
         if (running()) { // 若正在运行，则停止
             shutdown(); // 目标已经达到，停止
         } else { // 否则，开始运行，目标为当前旋钮值
             target_percent = knobs_percent();
         }
-        delay(100); // 防抖
     }
 
     if (running()) { // 若当前仍然存在目标
