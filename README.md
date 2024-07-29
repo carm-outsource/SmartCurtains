@@ -1,8 +1,10 @@
 # SmartCurtains Controller
 
-Simple **smart curtains** controller based on **Arduino Uno R3** with OpenJumpers module.
+Simple **smart curtains** controller based on **Arduino Uno R3** with [OpenJumper](https://www.openjumper.com/)'s module.
 
 ![](doc/img/demo.jpg)
+
+![OpenJumper](https://www.openjumper.com/assets/img/logo-red.png)
 
 ## Open Source Licence
 
